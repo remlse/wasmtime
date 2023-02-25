@@ -56,6 +56,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "chaos_mode"
+path = "fuzz_targets/chaos_mode.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "differential"
 path = "fuzz_targets/differential.rs"
 test = false

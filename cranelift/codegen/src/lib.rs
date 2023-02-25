@@ -69,7 +69,8 @@ pub use cranelift_entity as entity;
 pub use gimli;
 
 #[macro_use]
-mod machinst;
+#[allow(missing_docs)] // should be removed again just to test the poc
+pub mod machinst;
 
 pub mod binemit;
 pub mod cfg_printer;
