@@ -771,7 +771,8 @@ impl<I: VCodeInst> MachBuffer<I> {
     }
 
     fn optimize_branches(&mut self) {
-        if cfg!(fuzzing) {
+        #[cfg(feature = "chaos_mode")]
+        {
             // I think 2 different optimize function with (#[cfg(fuzzing)] / #[cfg(not(fuzzing))])
             // would not work, because there would be no way to do bisection
 
@@ -1692,7 +1693,7 @@ impl<I: VCodeInst> TextSectionBuilder for MachTextSectionBuilder<I> {
 }
 
 // We use an actual instruction definition to do tests, so we depend on the `arm64` feature here.
-#[cfg(any(all(test, feature = "arm64"), fuzzing))]
+#[cfg(any(all(test, feature = "arm64"), feature = "chaos_mode"))]
 mod test {
     use cranelift_entity::EntityRef as _;
 
@@ -2130,7 +2131,7 @@ mod test {
 }
 
 // is this th right way to go or should there be a more e2e approach?
-#[cfg(fuzzing)]
+#[cfg(feature = "chaos_mode")]
 pub fn test_fuzzing() {
     // maybe pass in a seed?
     test::test_island_body() // call the test cases that should also work in chaos mode
