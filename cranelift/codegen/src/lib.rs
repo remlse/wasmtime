@@ -72,6 +72,9 @@ pub use gimli;
 #[allow(missing_docs)] // should be removed again just to test the poc
 pub mod machinst;
 
+#[cfg(feature = "chaos_mode")]
+pub mod chaos_mode;
+
 pub mod binemit;
 pub mod cfg_printer;
 pub mod cursor;
