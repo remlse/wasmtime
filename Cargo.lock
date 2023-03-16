@@ -560,6 +560,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cranelift-chaos"
+version = "0.95.0"
+dependencies = [
+ "arbitrary",
+]
+
+[[package]]
 name = "cranelift-codegen"
 version = "0.95.0"
 dependencies = [
@@ -568,6 +575,7 @@ dependencies = [
  "bumpalo",
  "capstone",
  "cranelift-bforest",
+ "cranelift-chaos",
  "cranelift-codegen-meta",
  "cranelift-codegen-shared",
  "cranelift-entity",
@@ -609,6 +617,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "cranelift",
+ "cranelift-chaos",
  "cranelift-codegen",
  "cranelift-frontend",
  "cranelift-interpreter",
@@ -650,6 +659,7 @@ dependencies = [
  "anyhow",
  "arbitrary",
  "cranelift",
+ "cranelift-chaos",
  "cranelift-native",
  "target-lexicon",
 ]
@@ -683,6 +693,7 @@ version = "0.95.0"
 dependencies = [
  "anyhow",
  "cranelift",
+ "cranelift-chaos",
  "cranelift-codegen",
  "cranelift-entity",
  "cranelift-frontend",
@@ -702,6 +713,7 @@ name = "cranelift-module"
 version = "0.95.0"
 dependencies = [
  "anyhow",
+ "cranelift-chaos",
  "cranelift-codegen",
  "hashbrown 0.13.1",
 ]
@@ -710,6 +722,7 @@ dependencies = [
 name = "cranelift-native"
 version = "0.95.0"
 dependencies = [
+ "cranelift-chaos",
  "cranelift-codegen",
  "libc",
  "target-lexicon",
@@ -720,6 +733,7 @@ name = "cranelift-object"
 version = "0.95.0"
 dependencies = [
  "anyhow",
+ "cranelift-chaos",
  "cranelift-codegen",
  "cranelift-entity",
  "cranelift-frontend",
@@ -734,6 +748,7 @@ name = "cranelift-reader"
 version = "0.95.0"
 dependencies = [
  "anyhow",
+ "cranelift-chaos",
  "cranelift-codegen",
  "smallvec",
  "target-lexicon",
@@ -3582,6 +3597,7 @@ name = "wasmtime-cranelift"
 version = "8.0.0"
 dependencies = [
  "anyhow",
+ "cranelift-chaos",
  "cranelift-codegen",
  "cranelift-entity",
  "cranelift-frontend",
@@ -3681,6 +3697,7 @@ dependencies = [
  "arbitrary",
  "component-fuzz-util",
  "component-test-util",
+ "cranelift-chaos",
  "cranelift-codegen",
  "cranelift-filetests",
  "cranelift-fuzzgen",

@@ -4,6 +4,7 @@
 
 use crate::subtest::{run_filecheck, Context, SubTest};
 use anyhow::{bail, Result};
+use cranelift_chaos::ChaosEngine;
 use cranelift_codegen::ir;
 use cranelift_codegen::ir::function::FunctionParameters;
 use cranelift_codegen::isa;
@@ -52,7 +53,8 @@ impl SubTest for TestCompile {
     fn run(&self, func: Cow<ir::Function>, context: &Context) -> Result<()> {
         let isa = context.isa.expect("compile needs an ISA");
         let params = func.params.clone();
-        let mut comp_ctx = cranelift_codegen::Context::for_function(func.into_owned());
+        let mut comp_ctx =
+            cranelift_codegen::Context::for_function(func.into_owned(), ChaosEngine::noop());
 
         // With `MachBackend`s, we need to explicitly request dissassembly results.
         comp_ctx.set_disasm(true);
