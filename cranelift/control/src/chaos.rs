@@ -1,50 +1,29 @@
-use std::{
-    fmt::Debug,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use arbitrary::{Arbitrary, Unstructured};
 
+#[derive(Debug)]
 struct ControlPlaneData {
-    /// # Safety
+    /// This is the primary vector holding the bytes received from
+    /// the fuzzer. In order to avoid lifetime proliferation, new
+    /// [Unstructured] values with references into this vector are
+    /// created for every control plane API call. `primary` is then
+    /// updated to exclude the bytes consumed by [Unstructured],
+    /// ensuring no bytes are reused across control plane API calls.
     ///
-    /// This field must never be moved from, as it is referenced by
-    /// the field `unstructured` for its entire lifetime.
-    ///
-    /// This pattern is the ["self-referential" type](
-    /// https://morestina.net/blog/1868/self-referential-types-for-fun-and-profit)
-    #[allow(dead_code)]
-    data: Vec<u8>,
-    /// We use internal mutability such that a `ControlPlane` can be passed
-    /// through the call stack without having to be declared as mutable.
-    /// Besides the convenience, the mutation of the internal unstructured
-    /// data should be opaque to users anyway.
-    ///
-    /// # Safety
-    ///
-    /// The lifetime of this is actually not static, but tied to `data`.
-    unstructured: Mutex<Unstructured<'static>>,
+    /// [Unstructured]: arbitrary::unstructured::Unstructured
+    primary: Mutex<Vec<u8>>,
+    /// This is a temporary buffer used for updating the primary one
+    /// without needing additional heap allocations.
+    tmp: Mutex<Vec<u8>>,
 }
 
-impl Debug for ControlPlaneData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let data_len = self.data.len();
-        let remaining_len = self
-            .unstructured
-            .lock()
-            .expect("poisoned ControlPlaneData mutex")
-            .len();
-        let consumed_len = data_len - remaining_len;
-        f.debug_struct("ControlPlaneData")
-            .field("data", &self.data)
-            .field(
-                "unstructured",
-                &format!(
-                    "(consumed {consumed_len}/{data_len} bytes, \
-                    {remaining_len} remaining)"
-                ),
-            )
-            .finish()
+impl ControlPlaneData {
+    fn new(data: Vec<u8>) -> Self {
+        Self {
+            primary: Mutex::new(data.clone()),
+            tmp: Mutex::new(data),
+        }
     }
 }
 
@@ -60,11 +39,8 @@ pub struct ControlPlane {
 
 impl ControlPlane {
     fn new(data: Vec<u8>, is_todo: bool) -> Self {
-        let unstructured = Unstructured::new(&data);
-        // safety: this is ok because we never move out of the vector
-        let unstructured = Mutex::new(unsafe { std::mem::transmute(unstructured) });
         Self {
-            data: Arc::new(ControlPlaneData { data, unstructured }),
+            data: Arc::new(ControlPlaneData::new(data)),
             is_todo,
         }
     }
@@ -146,7 +122,7 @@ impl From<arbitrary::Error> for Error {
 }
 
 impl ControlPlane {
-    /// Request an arbitrary value from the control plane.
+    /// Request an arbitrary boolean from the control plane.
     ///
     /// # Errors
     ///
@@ -157,15 +133,31 @@ impl ControlPlane {
     ///
     /// [arbitrary]: arbitrary::Arbitrary::arbitrary
     /// [todo]: ControlPlane::todo
-    pub fn get_arbitrary<T: Arbitrary<'static>>(&self) -> Result<T, Error> {
+    pub fn get_arbitrary_bool(&self) -> Result<bool, Error> {
         if self.is_todo {
             return Err(Error::Todo);
         }
-        self.data
-            .unstructured
-            .lock()
-            .expect("poisoned ControlPlaneData mutex")
-            .arbitrary()
-            .map_err(Error::from)
+
+        let value = {
+            let primary = self.data.primary.lock().expect("poisoned");
+            let mut u = Unstructured::new(&primary);
+            let value = u.arbitrary().unwrap();
+
+            let rest = u.take_rest();
+
+            // store remaining bytes in tmp
+            let mut tmp = self.data.tmp.lock().expect("poisoned");
+            tmp.resize(rest.len(), 0);
+            tmp.copy_from_slice(rest);
+
+            value
+        };
+
+        // update primary with remaining bytes
+        let mut primary = self.data.primary.lock().expect("poisoned");
+        let mut tmp = self.data.tmp.lock().expect("poisoned");
+        std::mem::swap::<Vec<_>>(primary.as_mut(), tmp.as_mut());
+
+        Ok(value)
     }
 }
