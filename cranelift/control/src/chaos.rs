@@ -5,47 +5,9 @@ use std::{
 
 use arbitrary::{Arbitrary, Unstructured};
 
+#[derive(Debug, Default, Arbitrary)]
 struct ControlPlaneData {
-    /// # Safety
-    ///
-    /// This field must never be moved from, as it is referenced by
-    /// the field `unstructured` for its entire lifetime.
-    ///
-    /// This pattern is the ["self-referential" type](
-    /// https://morestina.net/blog/1868/self-referential-types-for-fun-and-profit)
-    #[allow(dead_code)]
-    data: Vec<u8>,
-    /// We use internal mutability such that a `ControlPlane` can be passed
-    /// through the call stack without having to be declared as mutable.
-    /// Besides the convenience, the mutation of the internal unstructured
-    /// data should be opaque to users anyway.
-    ///
-    /// # Safety
-    ///
-    /// The lifetime of this is actually not static, but tied to `data`.
-    unstructured: Mutex<Unstructured<'static>>,
-}
-
-impl Debug for ControlPlaneData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let data_len = self.data.len();
-        let remaining_len = self
-            .unstructured
-            .lock()
-            .expect("poisoned ControlPlaneData mutex")
-            .len();
-        let consumed_len = data_len - remaining_len;
-        f.debug_struct("ControlPlaneData")
-            .field("data", &self.data)
-            .field(
-                "unstructured",
-                &format!(
-                    "(consumed {consumed_len}/{data_len} bytes, \
-                    {remaining_len} remaining)"
-                ),
-            )
-            .finish()
-    }
+    bools: Vec<bool>,
 }
 
 /// The control plane of chaos mode.
@@ -54,17 +16,14 @@ impl Debug for ControlPlaneData {
 /// **Clone liberally!** The control plane is reference counted.
 #[derive(Debug, Clone)]
 pub struct ControlPlane {
-    data: Arc<ControlPlaneData>,
+    data: Arc<Mutex<ControlPlaneData>>,
     is_todo: bool,
 }
 
 impl ControlPlane {
-    fn new(data: Vec<u8>, is_todo: bool) -> Self {
-        let unstructured = Unstructured::new(&data);
-        // safety: this is ok because we never move out of the vector
-        let unstructured = Mutex::new(unsafe { std::mem::transmute(unstructured) });
+    fn new(data: ControlPlaneData, is_todo: bool) -> Self {
         Self {
-            data: Arc::new(ControlPlaneData { data, unstructured }),
+            data: Arc::new(Mutex::new(data)),
             is_todo,
         }
     }
@@ -103,7 +62,7 @@ impl ControlPlane {
     /// reduced as the chaos mode is introduced in more parts of the
     /// wasmtime codebase. Eventually, it should be deleted.
     pub fn todo() -> Self {
-        Self::new(Vec::new(), true)
+        Self::new(ControlPlaneData::default(), true)
     }
 }
 
@@ -116,56 +75,37 @@ impl<'a> Arbitrary<'a> for ControlPlane {
     }
 }
 
-/// An enumeration of control plane API errors, mostly propagating
-/// [arbitrary::Error].
+/// An enumeration of control plane API errors.
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
-    /// No choices were provided to the Unstructured::choose call.
-    EmptyChoose,
     /// There was not enough underlying data to fulfill some request for raw
     /// bytes.
     NotEnoughData,
-    /// The input bytes were not of the right format.
-    IncorrectFormat,
     /// The control plane API was accessed on a [ControlPlane::todo].
     Todo,
 }
 
-impl From<arbitrary::Error> for Error {
-    fn from(value: arbitrary::Error) -> Self {
-        // Force this match statement to be updated when arbitrary
-        // introduces new error variants.
-        #[deny(clippy::wildcard_enum_match_arm)]
-        match value {
-            arbitrary::Error::EmptyChoose => Error::EmptyChoose,
-            arbitrary::Error::NotEnoughData => Error::NotEnoughData,
-            arbitrary::Error::IncorrectFormat => Error::IncorrectFormat,
-            _ => unreachable!("must propagate all error variants"),
-        }
-    }
-}
-
 impl ControlPlane {
-    /// Request an arbitrary value from the control plane.
+    /// Request an arbitrary bool from the control plane.
     ///
     /// # Errors
     ///
-    /// - Errors from an underlying call to [arbitrary] will be
-    ///   propagated as-is.
+    /// - There was not enough underlying data to fulfill some request for
+    ///   raw bytes: [Error::NotEnoughData].
     /// - Calling this function on a control plane received from a call to
     ///   [todo] will return an [Error::Todo].
     ///
     /// [arbitrary]: arbitrary::Arbitrary::arbitrary
     /// [todo]: ControlPlane::todo
-    pub fn get_arbitrary<T: Arbitrary<'static>>(&self) -> Result<T, Error> {
+    pub fn get_arbitrary_bool(&self) -> Result<bool, Error> {
         if self.is_todo {
             return Err(Error::Todo);
         }
         self.data
-            .unstructured
             .lock()
             .expect("poisoned ControlPlaneData mutex")
-            .arbitrary()
-            .map_err(Error::from)
+            .bools
+            .pop()
+            .ok_or(Error::NotEnoughData)
     }
 }

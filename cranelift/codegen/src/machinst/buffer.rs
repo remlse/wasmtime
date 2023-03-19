@@ -777,7 +777,7 @@ impl<I: VCodeInst> MachBuffer<I> {
 
     fn optimize_branches(&mut self) {
         #[cfg(feature = "chaos")]
-        if let Ok(true) = self.control_plane.get_arbitrary() {
+        if let Ok(true) = self.control_plane.get_arbitrary_bool() {
             return;
         }
 
