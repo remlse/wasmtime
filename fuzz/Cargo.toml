@@ -36,6 +36,7 @@ component-fuzz-util = { workspace = true }
 [features]
 default = ['fuzz-spec-interpreter']
 fuzz-spec-interpreter = ['wasmtime-fuzzing/fuzz-spec-interpreter']
+chaos_mode = ["cranelift-codegen/chaos_mode"]
 
 [[bin]]
 name = "compile"
@@ -54,6 +55,13 @@ name = "api_calls"
 path = "fuzz_targets/api_calls.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "chaos_mode"
+path = "fuzz_targets/chaos_mode.rs"
+test = false
+doc = false
+required-features = ["chaos_mode"]
 
 [[bin]]
 name = "differential"
