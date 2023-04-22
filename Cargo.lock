@@ -633,6 +633,7 @@ name = "cranelift-control"
 version = "0.96.0"
 dependencies = [
  "arbitrary",
+ "yoke",
 ]
 
 [[package]]
@@ -4584,6 +4585,23 @@ dependencies = [
  "rawbytes",
  "zeroize",
 ]
+
+[[package]]
+name = "yoke"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1848075a23a28f9773498ee9a0f2cf58fcbad4f8c0ccf84a210ab33c6ae495de"
+dependencies = [
+ "serde",
+ "stable_deref_trait",
+ "zerofrom",
+]
+
+[[package]]
+name = "zerofrom"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df54d76c3251de27615dfcce21e636c172dafb2549cd7fd93e21c66f6ca6bea2"
 
 [[package]]
 name = "zeroize"
