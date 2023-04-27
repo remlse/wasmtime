@@ -645,7 +645,7 @@ pub struct EmitState {
 }
 
 impl MachInstEmitState<Inst> for EmitState {
-    fn new(abi: &Callee<AArch64MachineDeps>, ctrl_plane: ControlPlane) -> Self {
+    fn new(abi: &Callee<AArch64MachineDeps>) -> Self {
         EmitState {
             virtual_sp_offset: 0,
             nominal_sp_to_fp: abi.frame_size() as i64,
@@ -666,9 +666,11 @@ impl MachInstEmitState<Inst> for EmitState {
     fn ctrl_plane_mut(&mut self) -> &mut ControlPlane {
         &mut self.ctrl_plane
     }
+}
 
-    fn take_ctrl_plane(self) -> ControlPlane {
-        self.ctrl_plane
+impl From<EmitState> for ControlPlane {
+    fn from(value: EmitState) -> Self {
+        value.ctrl_plane
     }
 }
 

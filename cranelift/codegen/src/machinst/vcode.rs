@@ -802,7 +802,8 @@ impl<I: VCodeInst> VCode<I> {
         let mut cur_srcloc = None;
         let mut last_offset = None;
         let mut inst_offsets = vec![];
-        let mut state = I::State::new(&self.abi, std::mem::take(ctrl_plane));
+        let mut state = I::State::new(&self.abi);
+        let ctrl_plane_dispose_guard = state.add_ctrl_plane(std::mem::take(ctrl_plane));
 
         let mut disasm = String::new();
 
@@ -1044,7 +1045,8 @@ impl<I: VCodeInst> VCode<I> {
         }
 
         // emission state is not needed anymore, move control plane back out
-        *ctrl_plane = state.take_ctrl_plane();
+        // TODO use dispose guard
+        // *ctrl_plane = ctrl_plane_dispose_guard.dispose(state);
 
         // Emit the constants used by the function.
         let mut alignment = 1;

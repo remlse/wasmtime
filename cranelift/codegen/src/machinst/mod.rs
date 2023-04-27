@@ -269,11 +269,22 @@ pub trait MachInstEmit: MachInst {
     fn pretty_print_inst(&self, allocs: &[Allocation], state: &mut Self::State) -> String;
 }
 
+#[must_use]
+pub struct ControlPlaneDisposalGuard;
+
+impl ControlPlaneDisposalGuard {
+    fn dispose<T: Into<ControlPlane>>(self, into_ctrl_plane: T) -> ControlPlane {
+        into_ctrl_plane.into()
+    }
+}
+
 /// A trait describing the emission state carried between MachInsts when
 /// emitting a function body.
-pub trait MachInstEmitState<I: VCodeInst>: Default + Clone + Debug {
+pub trait MachInstEmitState<I: VCodeInst>: Default + Clone + Debug + Into<ControlPlane> {
     /// Create a new emission state given the ABI object.
-    fn new(abi: &Callee<I::ABIMachineSpec>, ctrl_plane: ControlPlane) -> Self;
+    /// The control plane disposal guard ensures the moved-in control plane
+    /// is disposed of (e.g. moved back to where it came from).
+    fn new(abi: &Callee<I::ABIMachineSpec>) -> Self;
     /// Update the emission state before emitting an instruction that is a
     /// safepoint.
     fn pre_safepoint(&mut self, _stack_map: StackMap) {}
@@ -285,9 +296,12 @@ pub trait MachInstEmitState<I: VCodeInst>: Default + Clone + Debug {
     /// be used if temporary access to the control plane is needed by some
     /// other function that doesn't have access to the emission state.
     fn ctrl_plane_mut(&mut self) -> &mut ControlPlane;
-    /// Used to continue using a control plane after the emission state is
-    /// not needed anymore.
-    fn take_ctrl_plane(self) -> ControlPlane;
+    /// return type ensures control plane is disposed of properly when
+    /// emit state is not needed anymore.
+    fn add_ctrl_plane(&mut self, ctrl_plane: ControlPlane) -> ControlPlaneDisposalGuard {
+        *self.ctrl_plane_mut() = ctrl_plane;
+        ControlPlaneDisposalGuard
+    }
     /// A hook that triggers when first emitting a new block.
     /// It is guaranteed to be called before any instructions are emitted.
     fn on_new_block(&mut self) {}
