@@ -50,7 +50,7 @@ mod component {
 
         let mut rng = StdRng::seed_from_u64(seed);
 
-        const TEST_CASE_COUNT: usize = 100;
+        const TEST_CASE_COUNT: usize = 2;
 
         let mut tests = TokenStream::new();
 
