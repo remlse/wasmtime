@@ -7,6 +7,7 @@ use crate::run_command::{Comparison, Invocation, RunCommand};
 use crate::sourcemap::SourceMap;
 use crate::testcommand::TestCommand;
 use crate::testfile::{Comment, Details, Feature, TestFile};
+use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::data_value::DataValue;
 use cranelift_codegen::entity::{EntityRef, PrimaryMap};
 use cranelift_codegen::ir::entities::{AnyEntity, DynamicType};
@@ -83,8 +84,12 @@ const MAX_BLOCKS_IN_A_FUNCTION: u32 = 100_000;
 /// Any test commands or target declarations are ignored.
 pub fn parse_functions(text: &str) -> ParseResult<Vec<Function>> {
     let _tt = timing::parse_text();
-    parse_test(text, ParseOptions::default())
-        .map(|file| file.functions.into_iter().map(|(func, _)| func).collect())
+    parse_test(text, ParseOptions::default()).map(|file| {
+        file.functions
+            .into_iter()
+            .map(|(func, _, _)| func)
+            .collect()
+    })
 }
 
 /// Options for configuring the parsing of filetests.
@@ -156,7 +161,14 @@ pub fn parse_test<'a>(text: &'a str, options: ParseOptions<'a>) -> ParseResult<T
     parser.claim_gathered_comments(AnyEntity::Function);
 
     let preamble_comments = parser.take_comments();
-    let functions = parser.parse_function_list()?;
+    let mut functions = parser.parse_function_list()?;
+
+    let control_plane_fuel = isa_spec.flags().control_plane_fuel();
+    if control_plane_fuel != 0 {
+        for (_, _, ctrl_plane) in functions.iter_mut() {
+            ctrl_plane.set_fuel(control_plane_fuel);
+        }
+    }
 
     Ok(TestFile {
         commands,
@@ -1153,10 +1165,14 @@ impl<'a> Parser<'a> {
     /// Parse a list of function definitions.
     ///
     /// This is the top-level parse function matching the whole contents of a file.
-    pub fn parse_function_list(&mut self) -> ParseResult<Vec<(Function, Details<'a>)>> {
+    pub fn parse_function_list(
+        &mut self,
+    ) -> ParseResult<Vec<(Function, Details<'a>, ControlPlane)>> {
         let mut list = Vec::new();
         while self.token().is_some() {
-            list.push(self.parse_function()?);
+            let ctrl_plane = self.parse_ctrl_plane()?;
+            let (func, det) = self.parse_function()?;
+            list.push((func, det, ctrl_plane));
         }
         if let Some(err) = self.lex_error {
             return match err {
@@ -1164,6 +1180,32 @@ impl<'a> Parser<'a> {
             };
         }
         Ok(list)
+    }
+
+    fn parse_ctrl_plane(&mut self) -> ParseResult<ControlPlane> {
+        if self
+            .match_identifier("control_plane", "expected 'control_plane'")
+            .is_err()
+        {
+            return Ok(ControlPlane::default());
+        };
+        self.lex
+            .rest_of_line()
+            .trim_start_matches(" data=")
+            .as_bytes()
+            .chunks(2)
+            .map(|two_bytes| {
+                String::from_utf8(two_bytes.to_vec())
+                    .map_err(|e| e.to_string())
+                    .and_then(|s| u8::from_str_radix(&s, 16).map_err(|e| e.to_string()))
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| ParseError {
+                location: self.loc,
+                message: "failed to parse control plane".into(),
+                is_warning: false,
+            })
+            .map(ControlPlane::new)
     }
 
     // Parse a whole function definition.

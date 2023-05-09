@@ -1,6 +1,8 @@
 //! Shims for ControlPlane when chaos mode is disabled. Enables
 //! unconditional use of the type and its methods throughout cranelift.
 
+use std::fmt::Display;
+
 /// A shim for ControlPlane when chaos mode is disabled.
 /// Please see the [crate-level documentation](crate).
 #[derive(Debug, Clone, Default)]
@@ -19,6 +21,18 @@ impl arbitrary::Arbitrary<'_> for ControlPlane {
 }
 
 impl ControlPlane {
+    /// Create a new control plane with the given data.
+    /// This variant is used when chaos mode is disabled.
+    /// It returns a default control plane.
+    pub fn new(_data: Vec<u8>) -> Self {
+        Self::default()
+    }
+
+    /// TODO
+    pub fn is_empty(&self) -> bool {
+        true
+    }
+
     /// Set the [fuel limit](crate#fuel-limit). This variant is used when
     /// chaos mode is disabled. It doesn't do anything.
     pub fn set_fuel(&mut self, _fuel: u8) {}
@@ -42,5 +56,13 @@ impl ControlPlane {
     #[inline]
     pub fn shuffled<T>(&mut self, iter: impl Iterator<Item = T>) -> impl Iterator<Item = T> {
         iter
+    }
+}
+
+/// A shim for ControlPlane's `Display` implementation when chaos mode is
+/// disabled. It doesn't write anything and always returns `Ok(())`.
+impl Display for ControlPlane {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Ok(())
     }
 }

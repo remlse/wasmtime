@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use arbitrary::{Arbitrary, Unstructured};
 
 /// The control plane of chaos mode.
@@ -19,12 +21,18 @@ impl Arbitrary<'_> for ControlPlane {
 }
 
 impl ControlPlane {
-    fn new(data: Vec<u8>) -> Self {
+    /// Create a new control plane with the given data.
+    pub fn new(data: Vec<u8>) -> Self {
         Self {
             data,
             fuel: None,
             tmp: Vec::new(),
         }
+    }
+
+    /// TODO
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
     }
 
     /// Set the [fuel limit](crate#fuel-limit). Zero is interpreted as the
@@ -37,6 +45,9 @@ impl ControlPlane {
     /// Tries to consume fuel, returning `true` if successful (or if
     /// fuel-limiting is disabled).
     fn consume_fuel(&mut self) -> bool {
+        if self.data.len() > 3 {
+            todo!("remove this debug statement")
+        }
         match self.fuel {
             None => true,               // fuel deactivated
             Some(f) if f == 0 => false, // no more fuel
@@ -100,5 +111,15 @@ impl ControlPlane {
         let mut slice: Vec<_> = iter.collect();
         self.shuffle(&mut slice);
         slice.into_iter()
+    }
+}
+
+impl Display for ControlPlane {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "control_plane data=")?;
+        for b in &self.data {
+            write!(f, "{b:02x}")?;
+        }
+        Ok(())
     }
 }

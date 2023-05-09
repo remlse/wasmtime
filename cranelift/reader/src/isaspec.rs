@@ -32,6 +32,14 @@ impl IsaSpec {
         }
         None
     }
+
+    /// TODO document
+    pub fn flags(&self) -> &Flags {
+        match self {
+            IsaSpec::None(flags) => flags,
+            IsaSpec::Some(isas) => isas[0].flags(), // what if there are many isas ?
+        }
+    }
 }
 
 /// An error type returned by `parse_options`.
